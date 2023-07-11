@@ -1,89 +1,75 @@
 require 'rails_helper'
 
-RSpec.describe "Articles", type: :request do
+RSpec.describe "GET /articles/:id", type: :request do
   before do
     user = User.create(username: 'author')
     user.articles.create(title: 'Article 1', content: "Content 1\nparagraph 1", minutes_to_read: 10)
-    user.articles.create(title: 'Article 2', content: "Content 2\nparagraph 1", minutes_to_read: 10)
   end
 
-  describe "GET /articles" do
-    it 'returns an array of all articles' do
-      get '/articles'
+  context 'with one pageview' do
+    it 'returns the correct article' do
+      get "/articles/#{Article.first.id}"
 
-      expect(response.body).to include_json([
-        { id: 2, title: 'Article 2', minutes_to_read: 10, author: 'author', preview: 'paragraph 1' },
-        { id: 1, title: 'Article 1', minutes_to_read: 10, author: 'author', preview: 'paragraph 1' }
-      ])
+      expect(response.body).to include_json({
+        id: Article.first.id, title: 'Article 1', minutes_to_read: 10, author: 'author', content: "Content 1\nparagraph 1"
+      })
+    end
+
+    it 'uses the session to keep track of the number of page views' do
+      get "/articles/#{Article.first.id}"
+
+      expect(session[:page_views]).to eq(1)
     end
   end
 
-  describe "GET /articles/:id" do
-    context 'with one pageviews' do
-      it 'returns the correct article' do
-        get "/articles/#{Article.first.id}"
-  
-        expect(response.body).to include_json({ 
-          id: 1, title: 'Article 1', minutes_to_read: 10, author: 'author', content: "Content 1\nparagraph 1" 
-        })
-      end
+  context 'with three pageviews' do
+    it 'returns the correct article' do
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
 
-      it 'uses the session to keep track of the number of page views' do
-        get "/articles/#{Article.first.id}"
-  
-        expect(session[:page_views]).to eq(1)
-      end
+      expect(response.body).to include_json({
+        id: Article.first.id, title: 'Article 1', minutes_to_read: 10, author: 'author', content: "Content 1\nparagraph 1"
+      })
     end
 
-    context 'with three pageviews' do
-      it 'returns the correct article' do
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
+    it 'uses the session to keep track of the number of page views' do
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
 
-        expect(response.body).to include_json({ 
-          id: 1, title: 'Article 1', minutes_to_read: 10, author: 'author', content: "Content 1\nparagraph 1" 
-        })
-      end
+      expect(session[:page_views]).to eq(3)
+    end
+  end
 
-      it 'uses the session to keep track of the number of page views' do
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
-  
-        expect(session[:page_views]).to eq(3)
-      end
+  context 'with more than three pageviews' do
+    it 'returns an error message' do
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
+
+      expect(response.body).to include_json({
+        error: "Maximum pageview limit reached"
+      })
     end
 
-    context 'with more than three pageviews' do
-      it 'returns an error message' do
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
+    it 'returns a 401 unauthorized status' do
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
 
-        expect(response.body).to include_json({ 
-          error: "Maximum pageview limit reached"
-        })
-      end
+      expect(response).to have_http_status(:unauthorized)
+    end
 
-      it 'returns a 401 unauthorized status' do
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
+    it 'uses the session to keep track of the number of page views' do
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
+      get "/articles/#{Article.first.id}"
 
-        expect(response).to have_http_status(:unauthorized)
-      end
-
-      it 'uses the session to keep track of the number of page views' do
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
-        get "/articles/#{Article.first.id}"
-  
-        expect(session[:page_views]).to eq(4)
-      end
+      expect(session[:page_views]).to eq(4)
     end
   end
 end

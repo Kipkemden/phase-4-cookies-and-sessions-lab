@@ -1,3 +1,7 @@
 class ArticleSerializer < ActiveModel::Serializer
-  attributes :id, :title, :content, :minutes_to_read, :author, :date
+  attributes :id, :title, :minutes_to_read, :author, :content
+
+  def author
+    object.user.username
+  end
 end
